@@ -29,12 +29,23 @@ jobs:
         sudo chown -R www-data:www-data /var/www/html/wordpress
 
     # Step 4: Configure MySQL for WordPress
-    - name: Configure MySQL for WordPress
+   
+    - name: Install MySQL
       run: |
-        sudo mysql -e "CREATE DATABASE wordpress;"
-        sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
-        sudo mysql -e "GRANT ALL PRIVILEGES ON wordpress.* TO 'wp_user'@'localhost';"
-        sudo mysql -e "FLUSH PRIVILEGES;"
+          # Update package list and install MySQL
+          sudo apt-get update
+          sudo apt-get install -y mysql-server
+
+          # Start the MySQL service
+          sudo systemctl start mysql
+
+          # Enable MySQL to start on boot
+          sudo systemctl enable mysql
+
+    - name: Create WordPress Database
+      run: |
+          # Create the WordPress database
+          sudo mysql -e "CREATE DATABASE wordpress;"
 
     # Step 5: Set up WordPress config
     - name: Configure WordPress wp-config.php
