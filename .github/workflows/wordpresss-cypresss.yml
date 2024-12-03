@@ -42,26 +42,13 @@ jobs:
           # Enable MySQL to start on boot
           sudo systemctl enable mysql
 
-          # Set the root password (optional, can be any password)
-          sudo mysql_secure_installation <<EOF
-            y
-            password
-            password
-            y
-            y
-            y
-            y
-            EOF
+          # Set root password manually
+          sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';"
 
     - name: Create WordPress Database
       run: |
           # Create the WordPress database with the password
           sudo mysql -u root -ppassword -e "CREATE DATABASE wordpress;"
-
-    - name: Create WordPress Database
-      run: |
-          # Create the WordPress database
-          sudo mysql -e "CREATE DATABASE wordpress;"
 
     # Step 5: Set up WordPress config
     - name: Configure WordPress wp-config.php
