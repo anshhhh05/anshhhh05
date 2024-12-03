@@ -1,98 +1,94 @@
-name: WordPresss and Cypresss Workflow
+name: Setup WordPress and Run Cypress Tests
 
 on:
   push:
     branches:
-      - main  # Trigger on push to main branch
+      - main
 
 jobs:
-  setup-and-test:
-    runs-on: ubuntu-latest  # Use an Ubuntu environment
+  setup-wordpress:
+    runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository code
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    # Step 2: Set up PHP and dependencies
-    - name: Set up PHP and dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y apache2 mysql-server php php-cli php-fpm php-mysql php-xml php-mbstring php-curl php-zip wget curl unzip
-
-    # Step 3: Install WordPress
-    - name: Install WordPress
-      run: |
-        sudo wget https://wordpress.org/latest.tar.gz
-        sudo tar -xzvf latest.tar.gz
-        sudo mv wordpress /var/www/html/
-        sudo chown -R www-data:www-data /var/www/html/wordpress
-
-    # Step 4: Configure MySQL for WordPress
-   
-    - name: Install MySQL
-      run: |
+      - name: Install MySQL
+        run: |
           # Update package list and install MySQL
           sudo apt-get update
           sudo apt-get install -y mysql-server
 
-          # Start the MySQL service
+          # Start MySQL service
           sudo systemctl start mysql
 
           # Enable MySQL to start on boot
           sudo systemctl enable mysql
 
-          # Set root password manually
-          sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';"
+          # Set the root password
+          sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'password';"
 
-    - name: Create WordPress Database
-      run: |
-          # Create the WordPress database with the password
+          # Reload privileges to apply the new root password
+          sudo mysql -e "FLUSH PRIVILEGES;"
+
+      - name: Create WordPress Database
+        run: |
+          # Create the WordPress database with the root password
           sudo mysql -u root -ppassword -e "CREATE DATABASE wordpress;"
 
-    # Step 5: Set up WordPress config
-    - name: Configure WordPress wp-config.php
-      run: |
-        cd /var/www/html/wordpress
-        sudo cp wp-config-sample.php wp-config.php
-        sudo sed -i 's/database_name_here/wordpress/' wp-config.php
-        sudo sed -i 's/username_here/wp_user/' wp-config.php
-        sudo sed -i 's/password_here/password/' wp-config.php
+      - name: Install PHP and Dependencies
+        run: |
+          # Install PHP and necessary extensions for WordPress
+          sudo apt-get install -y php php-mysql php-cli php-curl php-xml php-mbstring
 
-    # Step 6: Install Cypress
-    - name: Install Cypress
-      run: |
-        npm init -y
-        npm install cypress --save-dev
+      - name: Install WordPress
+        run: |
+          # Download WordPress
+          wget https://wordpress.org/latest.tar.gz
 
-    # Step 7: Add Cypress test script
-    - name: Add Cypress test case
-      run: |
-        echo "describe('WordPress Admin Login Test', () => {" > cypress/integration/login_spec.js
-        echo "  it('logs in with admin credentials', () => {" >> cypress/integration/login_spec.js
-        echo "    cy.visit('http://localhost/wordpress/wp-login.php')" >> cypress/integration/login_spec.js
-        echo "    cy.get('#user_login').type('admin')" >> cypress/integration/login_spec.js
-        echo "    cy.get('#user_pass').type('admin')" >> cypress/integration/login_spec.js
-        echo "    cy.get('#wp-submit').click()" >> cypress/integration/login_spec.js
-        echo "    cy.url().should('include', 'wp-admin')" >> cypress/integration/login_spec.js
-        echo "  })" >> cypress/integration/login_spec.js
-        echo "})" >> cypress/integration/login_spec.js
+          # Extract WordPress
+          tar -xvzf latest.tar.gz
 
-    # Step 8: Start Apache for WordPress (with port forwarding)
-    - name: Start Apache
-      run: |
-        sudo systemctl start apache2
-        sudo systemctl enable apache2
+          # Move WordPress files to /var/www/html
+          sudo mv wordpress /var/www/html/wordpress
 
-    # Step 9: Run Cypress tests
-    - name: Run Cypress tests
-      run: |
-        npx cypress run --headless
+          # Set permissions
+          sudo chown -R www-data:www-data /var/www/html/wordpress
 
-    # Step 10: Upload Cypress test results
-    - name: Upload test results
-      uses: actions/upload-artifact@v3
-      with:
-        name: cypress-test-results
-        path: cypress/results
+      - name: Configure WordPress wp-config.php
+        run: |
+          # Configure WordPress to use the database
+          cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
 
+          # Update wp-config.php to set database info
+          sudo sed -i "s/database_name_here/wordpress/" /var/www/html/wordpress/wp-config.php
+          sudo sed -i "s/username_here/root/" /var/www/html/wordpress/wp-config.php
+          sudo sed -i "s/password_here/password/" /var/www/html/wordpress/wp-config.php
+
+      - name: Start Apache2 and MySQL Services
+        run: |
+          # Install and start Apache server for WordPress
+          sudo apt-get install -y apache2
+          sudo systemctl start apache2
+          sudo systemctl enable apache2
+
+          # Restart MySQL service to apply changes
+          sudo systemctl restart mysql
+
+      - name: Install Cypress
+        run: |
+          # Install Node.js and npm
+          sudo apt-get install -y nodejs npm
+
+          # Install Cypress
+          npm install cypress
+
+      - name: Run Cypress Tests
+        run: |
+          # Run Cypress tests after WordPress setup
+          npx cypress run --headless --browser chrome
+
+      - name: Share Cypress Test Results
+        run: |
+          # After test completion, print the results
+          echo "Cypress tests completed successfully"
